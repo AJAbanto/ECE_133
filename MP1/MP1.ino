@@ -18,15 +18,11 @@
 #define Wr 19   //robot width
 
 
-int De = 0;
-int Dw = 0;
-int Dn = 0;
-
 
 
 const int forward = 0;
 const int backward = 1;
-
+unsigned int De,Dw,Dn;
 
 //long duration, cm;
 
@@ -63,7 +59,13 @@ void setup() {
 void loop() {
   wall_follow();
   
- /*
+ 
+
+}
+
+
+void print_distances(){
+  
   unsigned int Dn = sonar_F.ping_cm();
   unsigned int De = sonar_R.ping_cm();
   unsigned int Dw = sonar_L.ping_cm();
@@ -78,10 +80,8 @@ void loop() {
   Serial.print(Dw);
   Serial.print("cm");
   Serial.print("\n");
-   */ 
-
+   
 }
-
 
 void blink_1s_period(){
   digitalWrite(led_pin,HIGH);
@@ -140,14 +140,11 @@ void turn_90_ccw(){
 }
 
 void auto_level(){
-
-  
   
   Dn = sonar_F.ping_cm();
   De = sonar_R.ping_cm();
   Dw = sonar_L.ping_cm();
 
-  
   digitalWrite(dirPin_R, HIGH);
   digitalWrite(dirPin_L, LOW);
 
@@ -178,7 +175,9 @@ void wall_follow(){
   int err = 0 , last_err = 0;
   int wall_right = 0 , wall_left = 0;
   
-  unsigned int Dn = 0 , De = 0 , Dw = 0;
+  Dn = 0;
+  De = 0;
+  Dw = 0;
   int base_delay = 50, pid_delay1 = 0, pid_delay2 = 0;
   unsigned int initial_dist = 0;
   unsigned int old_Dn = 0  , old_De = 0 , old_Dw = 0;
