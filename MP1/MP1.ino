@@ -52,16 +52,17 @@ void setup() {
     digitalWrite(led_pin,LOW);
 
     turn_180();
-    auto_level();
+    auto_level_l();
     delay(2000);
 }
 
 void loop() {
   wall_follow();
-  
+  check_corner();
  
 
 }
+
 
 
 void print_distances(){
@@ -93,7 +94,7 @@ void blink_1s_period(){
 
 //turn 180
 void turn_180(){
-  int i;
+  int i = 0;
   for( i = 0; i<9450 ;i++){
       digitalWrite(dirPin_R, forward);
       digitalWrite(dirPin_L, backward);
@@ -109,7 +110,7 @@ void turn_180(){
 
 //turn 90 clock wise
 void turn_90_cw(){
-  int i;
+  int i = 0;
   for( i = 0; i<4725 ;i++){
       digitalWrite(dirPin_R, forward);
       digitalWrite(dirPin_L, backward);
@@ -125,7 +126,7 @@ void turn_90_cw(){
 
 //turn 90 counter clock wise
 void turn_90_ccw(){
-  int i;
+  int i =0 ;
   for( i = 0; i<4725 ;i++){
       digitalWrite(dirPin_R, backward);
       digitalWrite(dirPin_L, forward);
@@ -139,7 +140,9 @@ void turn_90_ccw(){
   }
 }
 
-void auto_level(){
+
+//Auto level after turning right
+void auto_level_l(){
   
   Dn = sonar_F.ping_cm();
   De = sonar_R.ping_cm();
@@ -163,9 +166,35 @@ void auto_level(){
   analogWrite(stepPin_L,0);
   analogWrite(stepPin_R,0);
   
-  
 }
 
+
+//auto level after turning left
+void auto_level_r(){
+  
+  Dn = sonar_F.ping_cm();
+  De = sonar_R.ping_cm();
+  Dw = sonar_L.ping_cm();
+
+  digitalWrite(dirPin_R, LOW);
+  digitalWrite(dirPin_L, HIGH);
+
+  //Auto level 
+  while(De <= 10){
+    
+    for(int i = 0; i < 3 ; i++){
+      analogWrite(stepPin_L,100);
+      analogWrite(stepPin_R,100);
+    }
+  
+    De = sonar_L.ping_cm();
+  }
+
+  //stop motors and stay in place
+  analogWrite(stepPin_L,0);
+  analogWrite(stepPin_R,0);
+  
+}
 
 
 int kp = 20 , kd = 1 ,ki = 0;
@@ -199,7 +228,7 @@ void wall_follow(){
   digitalWrite(dirPin_R, LOW);
   digitalWrite(dirPin_L, LOW);
 
-  if(wall_right && wall_left){
+  if(wall_right || wall_left){
     while(1){
   
       old_Dn = Dn;
@@ -209,17 +238,17 @@ void wall_follow(){
       Dn = sonar_F.ping_cm();
       De = sonar_R.ping_cm();
       Dw = sonar_L.ping_cm();
-          
-     
-  
+
+
       if(Dn <= (initial_dist - 25)){
         analogWrite(stepPin_L,0);
         analogWrite(stepPin_R,0);
         blink_1s_period();
         delay(2000);
-        
+          
         break;
       }
+     
   
       last_err = err;
 
@@ -241,7 +270,34 @@ void wall_follow(){
         analogWrite(stepPin_L,pid_delay1);
         analogWrite(stepPin_R,pid_delay2);
       }
-  
+
+        
+    }
+  }else{
+    while(Dn > 15){
+      for(int i = 0; i < 3 ; i++){
+        analogWrite(stepPin_L,150);
+        analogWrite(stepPin_R,150);
+      }
+      Dn = sonar_F.ping_cm();
     }
   }
+}
+
+
+
+void check_corner(){
+  Dn = sonar_F.ping_cm();
+  De = sonar_R.ping_cm();
+  Dw = sonar_L.ping_cm();
+  int thresh = 20;
+  if(Dw < thresh && Dn < thresh && De < thresh)
+    turn_180();
+  else if(Dw < thresh && Dn < thresh && De >= thresh)
+    turn_90_ccw();
+  else if(Dw >= thresh && Dn < thresh && De < thresh)
+    turn_90_cw();
+  else if(Dn < thresh && De >= thresh && Dw >= thresh)
+    turn_90_cw();
+       
 }
