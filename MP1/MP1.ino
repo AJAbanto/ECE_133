@@ -218,10 +218,10 @@ void wall_follow(){
   initial_dist = Dn;
 
   //check existence of walls
-  if(De < 40)
+  if(De <= 40)
     wall_right = 1;
 
-  if(Dw < 40)  
+  if(Dw <= 40)  
     wall_left  = 1;
 
   
@@ -245,7 +245,6 @@ void wall_follow(){
         analogWrite(stepPin_R,0);
         blink_1s_period();
         delay(2000);
-          
         break;
       }
      
@@ -273,15 +272,17 @@ void wall_follow(){
 
         
     }
-  }else{
-    while(Dn > 15){
+  }
+  
+  /*else{
+    while(Dn > 20){
       for(int i = 0; i < 3 ; i++){
         analogWrite(stepPin_L,150);
         analogWrite(stepPin_R,150);
       }
       Dn = sonar_F.ping_cm();
     }
-  }
+  }*/
 }
 
 
@@ -290,7 +291,17 @@ void check_corner(){
   Dn = sonar_F.ping_cm();
   De = sonar_R.ping_cm();
   Dw = sonar_L.ping_cm();
-  int thresh = 20;
+  int thresh = 15;
+
+  if(Dn < 40 && Dn > thresh){
+    for(int i = 0 ; i < 3000; i++){
+      for(int i = 0; i < 3 ; i++){
+        analogWrite(stepPin_L,150);
+        analogWrite(stepPin_R,150);
+      }
+      Dn = sonar_F.ping_cm(); 
+    }
+  }
   if(Dw < thresh && Dn < thresh && De < thresh)
     turn_180();
   else if(Dw < thresh && Dn < thresh && De >= thresh)
