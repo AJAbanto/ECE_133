@@ -58,7 +58,7 @@ void setup() {
 
 void loop() {
   wall_follow();
-  check_corner();
+  //print_distances();
  
 
 }
@@ -210,25 +210,49 @@ void wall_follow(){
   int base_delay = 50, pid_delay1 = 0, pid_delay2 = 0;
   unsigned int initial_dist = 0;
   unsigned int old_Dn = 0  , old_De = 0 , old_Dw = 0;
-  
-  Dn = sonar_F.ping_cm();
-  De = sonar_R.ping_cm();
-  Dw = sonar_L.ping_cm();
 
+  //take multiple samples to eliminate errors
+  for(int i = 0;i<10;i++){
+    Dn += sonar_F.ping_cm();
+    De += sonar_R.ping_cm();
+    Dw += sonar_L.ping_cm();
+  }
+
+  //average accross samples
+  De = De/10;
+  Dw = Dw/10;
+  Dn = Dn/10;
+
+  //account for non-idealities in sensors
+  if(Dn >= 100) Dn = 0;
+  if(Dw >= 100) Dw = 0;
+  if(De >= 100) De = 0;
+    
+  
   initial_dist = Dn;
 
   //check existence of walls
-  if(De <= 40)
+  if(De <= 30)
     wall_right = 1;
 
-  if(Dw <= 40)  
+  if(Dw <= 30)  
     wall_left  = 1;
 
   
   digitalWrite(dirPin_R, LOW);
   digitalWrite(dirPin_L, LOW);
 
-  if(wall_right || wall_left){
+  if(!wall_left && !wall_right && Dn > 20){
+    digitalWrite(led_pin , HIGH);
+    while(Dn > 20){
+      for(int i = 0; i < 3 ; i++){
+        analogWrite(stepPin_L,150);
+        analogWrite(stepPin_R,150);
+      }
+      Dn = sonar_F.ping_cm();
+    }
+    digitalWrite(led_pin,LOW);
+  }else if(wall_right || wall_left){
     while(1){
   
       old_Dn = Dn;
@@ -239,7 +263,7 @@ void wall_follow(){
       De = sonar_R.ping_cm();
       Dw = sonar_L.ping_cm();
 
-
+      
       if(Dn <= (initial_dist - 25)){
         analogWrite(stepPin_L,0);
         analogWrite(stepPin_R,0);
@@ -273,16 +297,11 @@ void wall_follow(){
         
     }
   }
+
+  //after following a wall check the corner
+  check_corner();
+
   
-  /*else{
-    while(Dn > 20){
-      for(int i = 0; i < 3 ; i++){
-        analogWrite(stepPin_L,150);
-        analogWrite(stepPin_R,150);
-      }
-      Dn = sonar_F.ping_cm();
-    }
-  }*/
 }
 
 
