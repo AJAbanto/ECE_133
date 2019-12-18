@@ -17,7 +17,19 @@
 
 #define Wr 19   //robot width
 
-
+//variables for BFS (Breadth-First Search)
+int adjlist[16][16]; //adjacency matrix
+int is_visited[16];
+int cellnum = 15; // assume rightmost bottom
+int cellnum_adj = 0;
+int cellnum_next = 0;
+DataQueue <int> cell(16); //queue for cells to visit
+DataQueue <int> cell_next(16);
+StackArray<int> prev_cells;
+int Df = 0;
+int Dr = 0;
+int Dl = 0;
+int orientation = 0; //N = 0, E = 1 , S = 2, W = 3
 
 
 const int forward = 0;
@@ -57,9 +69,33 @@ void setup() {
 }
 
 void loop() {
-  wall_follow();
-  //print_distances();
- 
+sense();
+  
+  Serial.print("Df: ");
+  Serial.print(Df);
+  Serial.print("cm");
+  Serial.print(" Dr: ");
+  Serial.print(Dr);
+  Serial.print("cm");
+  Serial.print(" Dl: ");
+  Serial.print(Dl);
+  Serial.print("cm");
+  Serial.print("\n");
+
+  while(Dl > 25){
+    search_left();
+    sense();
+  }
+
+  while (Dr > 25){
+    search_right();
+    sense();
+  }
+
+
+  if( Dr < 25){
+    wall_follow();
+  }
 
 }
 
@@ -122,6 +158,13 @@ void turn_90_cw(){
       digitalWrite(stepPin_L, LOW);
       delayMicroseconds(40);
   }
+
+  orientation++;
+  if (orientation < 0){
+    orientation += 4;
+  }else if (orientation > 3){
+    orientation -= 4;
+  }
 }
 
 //turn 90 counter clock wise
@@ -137,6 +180,12 @@ void turn_90_ccw(){
       digitalWrite(stepPin_R, LOW);
       digitalWrite(stepPin_L, LOW);
       delayMicroseconds(40);
+  }
+  orientation--;
+  if (orientation < 0){
+    orientation += 4;
+  }else if (orientation > 3){
+    orientation -= 4;
   }
 }
 
@@ -330,4 +379,69 @@ void check_corner(){
   else if(Dn < thresh && De >= thresh && Dw >= thresh)
     turn_90_cw();
        
+}
+
+void sense(){
+    Df = sonar_F.ping_cm();
+    Dr = sonar_R.ping_cm();
+    Dl = sonar_L.ping_cm();
+}
+
+
+void search_left(){
+  if(Dl > 25){
+    Serial.print(" orientation: ");
+    Serial.print(orientation);
+    Serial.print("\n");
+     if(orientation == 0 ){
+        cellnum_adj = cellnum - 1;
+        adjlist [cellnum][cellnum_adj] = 1;
+         
+      }else if (orientation == 1){
+        cellnum_adj = cellnum - 4;
+        adjlist [cellnum][cellnum_adj] = 1;
+         
+      }else if (orientation == 2){
+        cellnum_adj = cellnum + 1;
+        
+        adjlist [cellnum][cellnum_adj] = 1;
+      }else if(orientation == 3 ){
+        cellnum_adj = cellnum + 4;
+        adjlist [cellnum][cellnum_adj] = 1;
+      }
+
+      turn_90_ccw();
+      wall_follow(); //REPLACE with Funct "wall_follow()"
+      turn_90_cw();
+  }
+}
+
+void search_right(){
+      if (Dr > 25){
+      
+      if(orientation == 0 ){
+        cellnum_adj = cellnum + 1;
+        cell.enqueue(cellnum_adj);
+        adjlist [cellnum][cellnum_adj] = 1;
+      }else if (orientation == 1){
+        cellnum_adj = cellnum + 3;
+        cell.enqueue(cellnum_adj);
+        adjlist [cellnum][cellnum_adj] = 1;
+      }else if (orientation == 2){//right is open --> put in queue to be visited
+        cellnum_adj = cellnum - 1;
+        cell.enqueue(cellnum_adj);
+        adjlist [cellnum][cellnum_adj] = 1;
+      }else if(orientation == 3 ){
+        cellnum_adj = cellnum - 3;
+        cell.enqueue(cellnum_adj);
+        adjlist [cellnum][cellnum_adj] = 1;
+      }
+
+      turn_90_cw();
+      wall_follow(); //REPLACE with Funct "wall_follow()"
+      turn_90_ccw();
+     
+     }  
+
+     
 }
