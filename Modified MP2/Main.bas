@@ -1,6 +1,7 @@
 
 Dim PI As Double					   'PI constant for calculations
 
+
 Dim mobot As Integer				   'Mobot name
 
 Dim node As Integer					   'node in the graph
@@ -12,7 +13,7 @@ Dim node_array(30,4) As Integer        'position of each node relative to start 
 									   'constructed as: (x,y,visited?,junction?) (-1,0,1,1) note: 1 is visited/junction cell
 
 Dim steps As Integer				   'step counter for backtracking
-Dim step_q(10) As Integer			   'step queue for replaying steps
+Dim step_q(30) As Integer			   'step queue for replaying steps
 									   'each steps are represented as follows:
 									   'L = 1
 									   'R = 2
@@ -26,7 +27,8 @@ Dim bck_trck As Integer				   'flag for backtracking in DFS
 Dim start_cell As Integer			   'flag just incase we start facing a dead end
 
 Sub Main
-	SetMobotPosition(0,4.5,7.5,0)
+	EraseTrajectories()					'reset trajectories
+	SetMobotPosition(0,5.5,7.5,0)
 
 	SetTimeStep(1)
 
@@ -43,11 +45,19 @@ Sub Main
 	steps_q = Array(0,0,0,0,0,0,0,0,0,0)
 
 
-	While(node < 29)
 
-		'If(cell > 35) Then
-		'	print_currpos()
-		'End If
+	DFS()				'depth first seach
+	print_nodearray()	'print node array after
+
+End Sub
+
+
+'function for conducting DFS assume that node_array and adjacency matrix
+'is complete after this function is called
+Function DFS()
+	While(node <> 29)
+
+		print_currpos()
 
 		If(IsVisited(node) = 0 And bck_trck = 0) Then
 
@@ -131,7 +141,8 @@ Sub Main
 			'-----------------------Back tracking to 1st nearest junction----------------------
 			'print_currpos()
 			'------------------------check if we are at a junction-------------------
-			If(wall_cnt(mobot) < 2)Then
+			wall_cnt_o = wall_cnt(mobot)
+			If(wall_cnt_o < 2)Then
 
 
 				walls = check_cell(mobot)
@@ -174,14 +185,20 @@ Sub Main
 
 				steps = steps - 1		   'update step number
 
-				If(adj_mat(node,node-1) = 1)Then	'check node if connected to next node up
-					node = node - 1			   		'if connected then decrement to update
+				If(node <> 0)Then
+					If(adj_mat(node,node-1) = 1)Then	'check node if connected to next node up
+						node = node - 1			   		'if connected then decrement to update
+					Else
+						index = 0						'otherwise find the node number of the junction we took
+						While(adj_mat(node ,index) <> 1)
+							index = index + 1
+						Wend
+						node = index					'assume that that node number is the next node visited/backtracked to
+					End If
 				Else
-					index = 0						'otherwise find the node number of the junction we took
-					While(adj_mat(node ,index) <> 1)
-						index = index + 1
-					Wend
-					node = index					'assume that that node number is the next node visited/backtracked to
+					adj_mat(0,last_node + 1) = 1
+					adj_mat(last_node + 1, 0) = 1
+					node = last_node + 1
 				End If
 
 				'-------------------------------------------------
@@ -205,6 +222,15 @@ Sub Main
 				'find nearest node up the branch that is a junction
 
 				If(node <> NearestJunctionUp(last_junction_node))Then
+					walls = check_cell(mobot)
+
+					If(walls(1) = 0)Then		'dont turn
+					ElseIf(walls(0) = 0)Then
+						rotate90(mobot,"right")											'face right
+					ElseIf(walls(2) = 0)Then
+						rotate90(mobot,"left")											'face left
+					End If
+
 					mv_frwd_1cell(mobot)
 					update_currpos(mobot)
 
@@ -265,11 +291,11 @@ Sub Main
 		'--------------------End of backtracking to junction with a unvisited node--------
 		End If
 
+		start_cell = 0
+
 	Wend
+End Function
 
-	print_nodearray()
-
-End Sub
 
 'face direction of the lowest node number
 Function face_path_of_lowest_node_num(mobot As Integer)
@@ -327,7 +353,7 @@ End Function
 Function get_node_num( x As Variant,y As Variant) As Integer
 	Dim node_num As Integer
 	node_num = 0
-	For i = 0 To 30
+	For i = 0 To 29
 		If(node_array(i,0) = CInt(x) And node_array(i,1) = CInt(y))Then
 			node_num = i
 		End If
@@ -554,20 +580,6 @@ Function check_cell(mobot As Integer)
 End Function
 
 
-Function move_to_end(mobot As Integer)
-
-	'move forward 1 cell
-	s_f = MeasureRange(mobot,1,0)
-
-	While(s_f > 0.3 Or s_f = -1)
-
-		mv_frwd_1cell(mobot)
-		s_f = MeasureRange(mobot,1,0)
-		MsgBox(CStr(s_f))
-	Wend
-
-End Function
-
 Function mv_frwd_1cell(mobot As Integer)
 	'Note:ssume that mobot will start in the middle of the cell
 	'Note: assume each cell is 1 meter
@@ -576,7 +588,7 @@ Function mv_frwd_1cell(mobot As Integer)
 	pi = 3.14159265359
 
 
-	ts = 10 'seconds to get to othercell
+	ts = 500 'seconds to get to othercell
 
 	v = 1/ts		'velocities
 	w = v/r
