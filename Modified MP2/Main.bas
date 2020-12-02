@@ -43,7 +43,7 @@ Sub Main
 	steps_q = Array(0,0,0,0,0,0,0,0,0,0)
 
 
-	For cell = 0 To 50
+	While(node < 29)
 
 		'If(cell > 35) Then
 		'	print_currpos()
@@ -263,10 +263,9 @@ Sub Main
 
 
 		'--------------------End of backtracking to junction with a unvisited node--------
-
-
 		End If
-	Next
+
+	Wend
 
 	print_nodearray()
 
@@ -361,7 +360,7 @@ Function print_nodearray()
 
 	node_str = "Current Node: " +CStr(node)+" (" + CStr(curr_pos(0)) + "," + CStr(curr_pos(1)) + ")" +vbNewLine
 
-	For i = 0 To 30
+	For i = 0 To 29
 		node_str = node_str + "Node: " + CStr(i) + " (" + CStr(node_array(i,0)) + "," + CStr(node_array(i,1)) + ")"
 		If(node_array(i,3) = 1)Then
 			node_str = node_str + " Junction node" +vbNewLine
