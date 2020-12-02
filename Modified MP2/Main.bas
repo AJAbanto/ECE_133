@@ -1,8 +1,12 @@
 
 Dim PI As Double					   'PI constant for calculations
+
 Dim mobot As Integer				   'Mobot name
+
 Dim node As Integer					   'node in the graph
 Dim last_node As Integer			   'last node on current graph
+Dim last_junction_node As Integer	   'tracker for last junction visited
+
 Dim adj_mat(30,30) As Integer          'adjacency matrix, describes graph of maze
 Dim node_array(30,4) As Integer        'position of each node relative to start pos
 									   'constructed as: (x,y,visited?,junction?) (-1,0,1,1) note: 1 is visited/junction cell
@@ -18,6 +22,8 @@ Dim step_q(10) As Integer			   'step queue for replaying steps
 Dim curr_pos(2) As Integer			   'Current robot position (x,y)
 
 
+Dim bck_trck As Integer				   'flag for backtracking in DFS
+Dim start_cell As Integer			   'flag just incase we start facing a dead end
 
 Sub Main
 	SetMobotPosition(0,4.5,7.5,0)
@@ -26,10 +32,8 @@ Sub Main
 
 
 
-	Dim bck_trck As Integer				   'back tracking flag for DFS
-	Dim start_cell As Integer			   'flag just incase we start facing a dead end
-
 	PI = 4 * Atn(1)						   'initialize constant and variables
+	last_junction_node = 0
 	start_cell = 1
 	mobot = 0
 	node = 0
@@ -39,9 +43,11 @@ Sub Main
 	steps_q = Array(0,0,0,0,0,0,0,0,0,0)
 
 
-	For cell = 0 To 40
+	For cell = 0 To 50
 
-		'print_currpos()
+		'If(cell > 35) Then
+		'	print_currpos()
+		'End If
 
 		If(IsVisited(node) = 0 And bck_trck = 0) Then
 
@@ -76,6 +82,7 @@ Sub Main
 			node_array(node,2) = 1				'label as visited
 			If(wall_cnt_o < 2) Then
 				node_array(node,3) = 1			'label if junction
+				last_junction_node = 0			'last junction visited
 			Else
 				node_array(node,3) = 0
 			End If
@@ -183,7 +190,9 @@ Sub Main
 				'new junction to explore
 				If(steps = 0) Then
 
+
 					face_path_of_lowest_node_num(mobot)
+					last_junction_node = node
 
 				End If
 			End If
@@ -195,8 +204,62 @@ Sub Main
 
 				'find nearest node up the branch that is a junction
 
+				If(node <> NearestJunctionUp(last_junction_node))Then
+					mv_frwd_1cell(mobot)
+					update_currpos(mobot)
 
-				print_nodearray()
+					'update node number
+					If(adj_mat(node,node-1) = 1)Then	'check node if connected to next node up
+						node = node - 1			   		'if connected then decrement to update
+					Else
+						index = 0						'otherwise find the node number of the junction we took
+						While(adj_mat(node ,index) <> 1)
+							index = index + 1
+						Wend
+						node = index					'assume that that node number is the next node visited/backtracked to
+					End If
+
+				ElseIf(node = NearestJunctionUp(last_junction_node))Then
+					'assume we have arrived  at the nearest junction
+					'and that there is an unvisited neighboring cell
+
+					walls = check_cell(mobot)
+
+					If(walls(1) = 0 And IsNeighborVisited(mobot,"forward") = 0)Then		'dont turn
+					ElseIf(walls(0) = 0 And IsNeighborVisited(mobot,"right") = 0)Then
+						rotate90(mobot,"right")											'face right
+					ElseIf(walls(2) = 0 And IsNeighborVisited(mobot,"left") = 0)Then
+						rotate90(mobot,"left")											'face left
+					End If
+
+					mv_frwd_1cell(mobot)
+					update_currpos(mobot)
+
+
+												     'update adjacency matrix
+					adj_mat(node,last_node + 1) = 1  'add edge from this node to the new node on the new branch
+					adj_mat(last_node + 1, node) = 1 'add edge on the counter part
+
+					node = last_node + 1
+													 'reset flags and step count
+					bck_trck = 0
+					steps = 0
+
+					If(node = 29)Then				 'if last node on the grid
+													 'record node position in grid
+						node_array(node,0) = curr_pos(0)	'record x
+						node_array(node,1) = curr_pos(1)	'record y
+						node_array(node,2) = 1				'label as visited
+						If(wall_cnt_o < 2) Then
+							node_array(node,3) = 1			'label if junction
+							last_junction_node = 0			'last junction visited
+						Else
+							node_array(node,3) = 0
+						End If
+
+					End If
+
+				End If
 
 
 		'--------------------End of backtracking to junction with a unvisited node--------
@@ -205,6 +268,7 @@ Sub Main
 		End If
 	Next
 
+	print_nodearray()
 
 End Sub
 
@@ -244,17 +308,17 @@ Function face_path_of_lowest_node_num(mobot As Integer)
 		rotate90(mobot,"right") 				'face right
 	ElseIf(node_nums(2) < node_nums(0) And node_nums(2) < node_nums(1) And node_nums(2) <> -1)Then
 		rotate90(mobot,"left")					'face left
-	ElseIf(node_nums(0) < node_nums(2))Then
+	ElseIf(node_nums(0) < node_nums(2) And node_nums(0) <> -1)Then
 		rotate90(mobot,"right") 				'face right ,front is obstructed
-	ElseIf(node_nums(2) < node_nums(0))Then
+	ElseIf(node_nums(2) < node_nums(0) And node_nums(2) <> -1)Then
 		rotate90(mobot,"left")					'face left  ,front is obstructed
-	ElseIf(node_nums(1) < node_nums(0))Then
+	ElseIf(node_nums(1) < node_nums(0) And node_nums(1) <> -1)Then
 												'do nothing, left is obstructed
-	ElseIf(node_nums(0) < node_nums(1))Then
+	ElseIf(node_nums(0) < node_nums(1) And node_nums(0) <> -1)Then
 		rotate90(mobot,"right")					'face right, left is obstructed
-	ElseIf(node_nums(1) < node_nums(2))Then
+	ElseIf(node_nums(1) < node_nums(2) And node_nums(1) <> -1)Then
 												'do nothing, right is obstructed
-	ElseIf(node_nums(2) < node_nums(1))Then
+	ElseIf(node_nums(2) < node_nums(1) And node_nums(2) <> - 1)Then
 		rotate90(mobot,"left")					'face left,  right is obstructed
 	End If
 
@@ -513,7 +577,7 @@ Function mv_frwd_1cell(mobot As Integer)
 	pi = 3.14159265359
 
 
-	ts = 25 'seconds to get to othercell
+	ts = 10 'seconds to get to othercell
 
 	v = 1/ts		'velocities
 	w = v/r
