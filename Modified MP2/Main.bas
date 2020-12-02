@@ -41,12 +41,13 @@ Sub Main
 
 	For cell = 0 To 40
 
-		print_currpos()
+		'print_currpos()
 
 		If(IsVisited(node) = 0 And bck_trck = 0) Then
 
 			'--------------------------------Unvisited exploring---------------------------------
 
+			wall_cnt_o = wall_cnt(mobot)	'count walls
 			walls = check_cell(mobot)	'walls = { R,F,L,B } POV of mobot
 
 
@@ -73,8 +74,10 @@ Sub Main
 			node_array(node,0) = curr_pos(0)	'record x
 			node_array(node,1) = curr_pos(1)	'record y
 			node_array(node,2) = 1				'label as visited
-			If(wall_cnt(mobot) < 2) Then
+			If(wall_cnt_o < 2) Then
 				node_array(node,3) = 1			'label if junction
+			Else
+				node_array(node,3) = 0
 			End If
 
 
@@ -118,10 +121,11 @@ Sub Main
 			'--------------------------------------------------------------------------------
 		ElseIf(bck_trck = 1 And steps > 0)Then
 
-
+			'-----------------------Back tracking to 1st nearest junction----------------------
 			'print_currpos()
-			'check walls if two paths are available/only one adjacent wall
+			'------------------------check if we are at a junction-------------------
 			If(wall_cnt(mobot) < 2)Then
+
 
 				walls = check_cell(mobot)
 
@@ -162,17 +166,125 @@ Sub Main
 				update_currpos(mobot)	   'update position vector after moving
 
 				steps = steps - 1		   'update step number
-				node = node - 1			   'update node number since we moved back a node
+
+				If(adj_mat(node,node-1) = 1)Then	'check node if connected to next node up
+					node = node - 1			   		'if connected then decrement to update
+				Else
+					index = 0						'otherwise find the node number of the junction we took
+					While(adj_mat(node ,index) <> 1)
+						index = index + 1
+					Wend
+					node = index					'assume that that node number is the next node visited/backtracked to
+				End If
 
 				'-------------------------------------------------
 
+				'if steps are now zero then assume you are now at a junction and we need to find
+				'new junction to explore
+				If(steps = 0) Then
 
+					face_path_of_lowest_node_num(mobot)
+
+				End If
 			End If
+			'--------------------------End to backtracking to 1st junction------------------
+
+		ElseIf(IsVisited(node) And steps = 0)Then
+		'--------------------Start backtracking to junction with a unvisited node--------
+
+
+				'find nearest node up the branch that is a junction
+
+
+				print_nodearray()
+
+
+		'--------------------End of backtracking to junction with a unvisited node--------
+
+
 		End If
 	Next
 
 
 End Sub
+
+'face direction of the lowest node number
+Function face_path_of_lowest_node_num(mobot As Integer)
+	Dim node_nums(3) As Integer
+
+	walls = check_cell(mobot)
+
+	theta = ToRadians(GetMobotTheta(mobot))
+	x = curr_pos(0)
+	y = curr_pos(1)
+
+	'initializing
+	node_nums(0) = -1
+	node_nums(1) = -1
+	node_nums(2) = -1
+								'iterate through walls
+	For i = 0 To 2
+		If(walls(i) = 0)Then	'if no wall then record node_num
+			Select Case i
+				Case 0
+					node_nums(i) = get_node_num(x + Sin(theta) , y - Cos(theta))
+				Case 1
+					node_nums(i) = get_node_num(x + Cos(theta) , y + Sin(theta))
+				Case 2
+					node_nums(i) = get_node_num(x - Sin(theta) , y + Cos(theta))
+			End Select
+
+		End If
+	Next
+
+	'face the lowest number
+	If(node_nums(1) < node_nums(0) And node_nums(1) < node_nums(2) And node_nums(1) <> -1)Then
+												'do nothing
+	ElseIf(node_nums(0) < node_nums(1) And node_nums(0) < node_nums(2) And node_nums(0) <> -1)Then
+		rotate90(mobot,"right") 				'face right
+	ElseIf(node_nums(2) < node_nums(0) And node_nums(2) < node_nums(1) And node_nums(2) <> -1)Then
+		rotate90(mobot,"left")					'face left
+	ElseIf(node_nums(0) < node_nums(2))Then
+		rotate90(mobot,"right") 				'face right ,front is obstructed
+	ElseIf(node_nums(2) < node_nums(0))Then
+		rotate90(mobot,"left")					'face left  ,front is obstructed
+	ElseIf(node_nums(1) < node_nums(0))Then
+												'do nothing, left is obstructed
+	ElseIf(node_nums(0) < node_nums(1))Then
+		rotate90(mobot,"right")					'face right, left is obstructed
+	ElseIf(node_nums(1) < node_nums(2))Then
+												'do nothing, right is obstructed
+	ElseIf(node_nums(2) < node_nums(1))Then
+		rotate90(mobot,"left")					'face left,  right is obstructed
+	End If
+
+End Function
+
+'get node number based on the coordinate passed
+Function get_node_num( x As Variant,y As Variant) As Integer
+	Dim node_num As Integer
+	node_num = 0
+	For i = 0 To 30
+		If(node_array(i,0) = CInt(x) And node_array(i,1) = CInt(y))Then
+			node_num = i
+		End If
+	Next
+
+	get_node_num = node_num
+End Function
+
+'find nearest junction up the branch
+Function NearestJunctionUp(node As Integer) As Integer
+	Dim new_node As Integer
+
+	new_node = node -1
+	While(node_array(new_node,3) <> 1)
+		new_node = new_node - 1
+	Wend
+
+	NearestJunctionUp = new_node
+End Function
+
 
 'convert degrees to radians
 Function ToRadians(degrees As Integer) As Double
@@ -186,7 +298,12 @@ Function print_nodearray()
 	node_str = "Current Node: " +CStr(node)+" (" + CStr(curr_pos(0)) + "," + CStr(curr_pos(1)) + ")" +vbNewLine
 
 	For i = 0 To 30
-		node_str = node_str + "Node: " + CStr(i) + " (" + CStr(node_array(i,0)) + "," + CStr(node_array(i,1)) + ")" +vbNewLine
+		node_str = node_str + "Node: " + CStr(i) + " (" + CStr(node_array(i,0)) + "," + CStr(node_array(i,1)) + ")"
+		If(node_array(i,3) = 1)Then
+			node_str = node_str + " Junction node" +vbNewLine
+		Else
+			node_str = node_str + vbNewLine
+		End If
 	Next
 
 	MsgBox(node_str)
@@ -305,10 +422,11 @@ End Function
 
 'count walls adjacent to the mobot
 Function wall_cnt(mobot As Integer) As Integer
-	walls = check_cell(mobot)
+	Dim buff As Variant
+	buff = check_cell(mobot)
 	cnt = 0
 	For i = 0 To 3
-		If(walls(i))Then
+		If(buff(i) = 1)Then
 			cnt = cnt + 1
 		End If
 	Next
@@ -338,10 +456,6 @@ Function check_cell(mobot As Integer)
 
 	'set initial wall thresh
 	wall_threshold = 0.36
-
-
-	'record initial position
-	init_theta = GetMobotTheta(mobot)
 
 
 
@@ -399,7 +513,7 @@ Function mv_frwd_1cell(mobot As Integer)
 	pi = 3.14159265359
 
 
-	ts = 50 'seconds to get to othercell
+	ts = 25 'seconds to get to othercell
 
 	v = 1/ts		'velocities
 	w = v/r
