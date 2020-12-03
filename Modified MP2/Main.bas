@@ -28,7 +28,7 @@ Dim start_cell As Integer			   'flag just incase we start facing a dead end
 
 Sub Main
 	EraseTrajectories()					'reset trajectories
-	SetMobotPosition(0,5.5,7.5,90)
+	SetMobotPosition(0,6.5,5.5,90)
 
 	SetTimeStep(1)
 
@@ -57,9 +57,9 @@ End Sub
 'is complete after this function is called
 Function DFS()
 
-	While(node <> 29)
+	While(node < 29)
 
-		print_currpos()
+		'print_currpos()
 
 		If(IsVisited(node) = 0 And bck_trck = 0) Then
 
@@ -114,6 +114,22 @@ Function DFS()
 				steps = steps + 1		   'update step count
 				node = node + 1			   'update node number
 
+												 'We reached the end
+				If(node = 29)Then				 'if last node on the grid
+												 'record node position in grid
+					node_array(node,0) = curr_pos(0)	'record x
+					node_array(node,1) = curr_pos(1)	'record y
+					node_array(node,2) = 1				'label as visited
+					If(wall_cnt_o < 2) Then
+						node_array(node,3) = 1			'label if junction
+						last_junction_node = 0			'last junction visited
+					Else
+						node_array(node,3) = 0
+					End If
+
+				End If
+
+
 
 														'record previous steps
 														'note: walls = { R,F,L,B }
@@ -141,7 +157,7 @@ Function DFS()
 				Else
 					last_node = node			'record last node number (which is a new branch)
 					node = last_junction_node	'last junction node
-					bck_trck = 1
+					bck_trck = 0				'go back no nearest junction node
 					steps = 0					'try this fix
 				End If
 
@@ -155,7 +171,7 @@ Function DFS()
 			'print_currpos()
 			'------------------------check if we are at a junction-------------------
 			wall_cnt_o = wall_cnt(mobot)
-			If(wall_cnt_o < 2 Or IsNodeJunction(node) = 1)Then
+			If(wall_cnt_o < 2)Then
 
 
 				walls = check_cell(mobot)
@@ -223,10 +239,8 @@ Function DFS()
 		ElseIf(IsVisited(node) = 1 And steps = 0)Then
 		'--------------------Start backtracking to junction with a unvisited node--------
 
-
 				'find nearest node up the branch that is a junction
-
-				If(node <> NearestJunctionUp(last_junction_node) And node <> 0)Then
+				If(node <> NearestJunctionUp(last_junction_node) )Then
 					walls = check_cell(mobot)
 
 					If(walls(1) = 0)Then		'dont turn
@@ -240,9 +254,12 @@ Function DFS()
 					update_currpos(mobot)
 
 					'update node number
-					'MsgBox(CStr(node))
-					
-					If(adj_mat(node,node-1) = 1)Then	'check node if connected to next node up
+					'assume that if we com accross node 0 again that it is a new junction
+					If(node = 0)Then
+						node = last_node + 1
+						adj_mat(0,last_node + 1) = 1
+						adj_mat(last_node + 1,0) = 1
+					ElseIf(adj_mat(node,node-1) = 1)Then	'check node if connected to next node up
 						node = node - 1			   		'if connected then decrement to update
 					Else
 						index = 0						'otherwise find the node number of the junction we took
@@ -395,11 +412,19 @@ End Function
 'find nearest junction up the branch
 Function NearestJunctionUp(node As Integer) As Integer
 	Dim new_node As Integer
+	Dim neighbor_j As Integer
 
+	neighbor_j = -1
 	new_node = node -1
+
+	'first search for nearest connected junction
+	'with the closes node number to node (i.e 16 and 19)
 	While(node_array(new_node,3) <> 1)
 		new_node = new_node - 1
 	Wend
+
+
+	'MsgBox("target j_node: " + CStr(new_node))
 
 	NearestJunctionUp = new_node
 End Function
