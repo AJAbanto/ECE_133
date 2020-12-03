@@ -28,7 +28,7 @@ Dim start_cell As Integer			   'flag just incase we start facing a dead end
 
 Sub Main
 	EraseTrajectories()					'reset trajectories
-	SetMobotPosition(0,5.5,7.5,0)
+	SetMobotPosition(0,5.5,7.5,90)
 
 	SetTimeStep(1)
 
@@ -47,6 +47,7 @@ Sub Main
 
 
 	DFS()				'depth first seach
+	print_adjmat()		'print adjacency matrix after
 	print_nodearray()	'print node array after
 
 End Sub
@@ -55,6 +56,7 @@ End Sub
 'function for conducting DFS assume that node_array and adjacency matrix
 'is complete after this function is called
 Function DFS()
+
 	While(node <> 29)
 
 		print_currpos()
@@ -92,7 +94,7 @@ Function DFS()
 			node_array(node,2) = 1				'label as visited
 			If(wall_cnt_o < 2) Then
 				node_array(node,3) = 1			'label if junction
-				last_junction_node = 0			'last junction visited
+				last_junction_node = node		'last junction visited
 			Else
 				node_array(node,3) = 0
 			End If
@@ -125,12 +127,23 @@ Function DFS()
 
 
 			Else
+				'dead end encountered
 
 				mv_frwd_1cell(mobot)	    'move mobot back to last node to start backtrack routine
 				update_currpos(mobot)		'update position vector after moving
 
-				last_node = node			'record last node number
-				node = node - 1				'update node number
+				'check if previous node is not a junction and that
+				'next/adjacent cell is not node-1
+				'thus we encountered this dead end after 2 steps and we can back track
+				If(adj_mat(node,node - 1) = 1)Then
+					last_node = node			'record last node number
+					node = node - 1				'update node number
+				Else
+					last_node = node			'record last node number (which is a new branch)
+					node = last_junction_node	'last junction node
+					bck_trck = 1
+					steps = 0					'try this fix
+				End If
 
 				'print_stepq(steps)			'print out last steps in the queue
 			End If
@@ -142,7 +155,7 @@ Function DFS()
 			'print_currpos()
 			'------------------------check if we are at a junction-------------------
 			wall_cnt_o = wall_cnt(mobot)
-			If(wall_cnt_o < 2)Then
+			If(wall_cnt_o < 2 Or IsNodeJunction(node) = 1)Then
 
 
 				walls = check_cell(mobot)
@@ -168,10 +181,7 @@ Function DFS()
 				steps = 0
 
 			Else
-
-				'search current position on node list and check if node exists on available path
-
-
+				'print_stepq(steps)
 				'------------------backtrack nodes---------------
 				Select Case step_q(steps)
 					Case 1 'previous was left so turn right
@@ -185,29 +195,24 @@ Function DFS()
 
 				steps = steps - 1		   'update step number
 
-				If(node <> 0)Then
-					If(adj_mat(node,node-1) = 1)Then	'check node if connected to next node up
-						node = node - 1			   		'if connected then decrement to update
-					Else
-						index = 0						'otherwise find the node number of the junction we took
-						While(adj_mat(node ,index) <> 1)
-							index = index + 1
-						Wend
-						node = index					'assume that that node number is the next node visited/backtracked to
-					End If
+				If(adj_mat(node,node-1) = 1)Then	'check node if connected to next node up
+					node = node - 1			   		'if connected then decrement to update
 				Else
-					adj_mat(0,last_node + 1) = 1
-					adj_mat(last_node + 1, 0) = 1
-					node = last_node + 1
+					index = 0						'otherwise find the node number of the junction we took
+					While(adj_mat(node ,index) <> 1)
+						index = index + 1
+					Wend
+					node = index					'assume that that node number is the next node visited/backtracked to
+
 				End If
+
 
 				'-------------------------------------------------
 
-				'if steps are now zero then assume you are now at a junction and we need to find
+				'if steps are now zero and no neighboring unvisited nodes
+				'then assume you are now at a junction and we need to find
 				'new junction to explore
-				If(steps = 0) Then
-
-
+				If(steps = 0 ) Then
 					face_path_of_lowest_node_num(mobot)
 					last_junction_node = node
 
@@ -215,13 +220,13 @@ Function DFS()
 			End If
 			'--------------------------End to backtracking to 1st junction------------------
 
-		ElseIf(IsVisited(node) And steps = 0)Then
+		ElseIf(IsVisited(node) = 1 And steps = 0)Then
 		'--------------------Start backtracking to junction with a unvisited node--------
 
 
 				'find nearest node up the branch that is a junction
 
-				If(node <> NearestJunctionUp(last_junction_node))Then
+				If(node <> NearestJunctionUp(last_junction_node) And node <> 0)Then
 					walls = check_cell(mobot)
 
 					If(walls(1) = 0)Then		'dont turn
@@ -235,6 +240,8 @@ Function DFS()
 					update_currpos(mobot)
 
 					'update node number
+					'MsgBox(CStr(node))
+					
 					If(adj_mat(node,node-1) = 1)Then	'check node if connected to next node up
 						node = node - 1			   		'if connected then decrement to update
 					Else
@@ -266,6 +273,7 @@ Function DFS()
 					adj_mat(node,last_node + 1) = 1  'add edge from this node to the new node on the new branch
 					adj_mat(last_node + 1, node) = 1 'add edge on the counter part
 
+					last_junction_node = node		 'record that we visited this last node
 					node = last_node + 1
 													 'reset flags and step count
 					bck_trck = 0
@@ -294,6 +302,28 @@ Function DFS()
 		start_cell = 0
 
 	Wend
+End Function
+
+'function to print adjacency matrix for debugging
+Function print_adjmat()
+	Dim adjmat_str As String
+
+	For i = 0 To 29
+		adjmat_str = adjmat_str + "Node " + CStr(i)
+
+		If(i <= 9 ) Then
+			adjmat_str = adjmat_str + "   "
+		Else
+			adjmat_str = adjmat_str + "  "
+		End If
+		For j = 0 To 29
+			adjmat_str = adjmat_str + CStr(adj_mat(i,j)) + " "
+		Next
+		adjmat_str = adjmat_str + vbNewLine
+	Next
+
+	MsgBox(adjmat_str)
+
 End Function
 
 
