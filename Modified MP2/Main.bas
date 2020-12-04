@@ -28,7 +28,7 @@ Dim start_cell As Integer			   'flag just incase we start facing a dead end
 
 Sub Main
 	EraseTrajectories()					'reset trajectories
-	SetMobotPosition(0,6.5,5.5,90)
+	SetMobotPosition(0,1.5,7.5,90)
 
 	SetTimeStep(1)
 
@@ -657,7 +657,8 @@ Function mv_frwd_1cell(mobot As Integer)
 
 End Function
 
-
+'function to rotate mobot to FACE a certain direction
+'note: dr is left/right side in the POV of the mobot
 Function rotate90(mobot As Integer, dr As String)
 
 	Dim pi As Double
